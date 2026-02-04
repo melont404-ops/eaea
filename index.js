@@ -4,20 +4,16 @@ import puppeteer from "puppeteer";
 const app = express();
 
 app.get("/check", async (req, res) => {
-  let browser;
-  try {
-    browser = await puppeteer.launch({ headless: "new" });
-    const page = await browser.newPage();
-    await page.goto("https://example.com");
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
 
-    const title = await page.title();
-    res.json({ success: true, title });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  } finally {
-    if (browser) await browser.close();
-  }
+  const page = await browser.newPage();
+  await page.goto("https://example.com");
+
+  res.json({ title: await page.title() });
+  await browser.close();
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("running"));
+app.listen(process.env.PORT || 3000);
