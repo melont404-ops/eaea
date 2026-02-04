@@ -6,7 +6,6 @@ const app = express();
 app.get("/api/check", async (req, res) => {
   const { email } = req.query;
 
-  // 1️⃣ validasi email
   if (!email) {
     return res.status(400).json({
       success: false,
@@ -14,39 +13,86 @@ app.get("/api/check", async (req, res) => {
     });
   }
 
+  let browser;
+
   try {
-    // 2️⃣ launch browser
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      ],
     });
 
     const page = await browser.newPage();
 
-    // optional: biar cepat
-    await page.setRequestInterception(true);
-    page.on("request", (req) => {
-      if (["image", "stylesheet", "font"].includes(req.resourceType())) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
+    // biar gak timeout Netflix
+    page.setDefaultNavigationTimeout(0);
 
-    // 3️⃣ contoh logic pakai email
-    await page.goto("https://example.com", {
+    // open Netflix
+    await page.goto("https://www.netflix.com/", {
       waitUntil: "domcontentloaded",
     });
 
-    const title = await page.title();
+    // 1️⃣ tunggu input email
+    await page.waitForSelector('input[name="email"]', {
+      visible: true,
+    });
 
-    await browser.close();
+    // 2️⃣ ketik email
+    await page.type('input[name="email"]', email, { delay: 50 });
 
-    // 4️⃣ response sukses
+    // 3️⃣ tunggu tombol submit
+    await page.waitForSelector('button[type="submit"]', {
+      visible: true,
+    });
+
+    // klik tombol
+    await page.click('button[type="submit"]');
+
+    // tunggu salah satu: navigation ATAU error text
+    await Promise.race([
+      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
+      page.waitForFunction(
+        () =>
+          document.body.innerText.includes("Something went wrong") ||
+          document.body.innerText.includes("Try again") ||
+          document.body.innerText.includes("trouble"),
+      ),
+    ]);
+
+    const currentUrl = page.url();
+    let result = "unknown";
+
+    // 1️⃣ redirect signup
+    if (currentUrl.includes("/signup")) {
+      result = "invalid_signup";
+    }
+
+    // 2️⃣ redirect login
+    else if (currentUrl.includes("/login")) {
+      result = "valid_login";
+    }
+
+    // 3️⃣ error message
+    else {
+      const pageText = await page.evaluate(() => document.body.innerText);
+
+      if (
+        pageText.includes("Something went wrong") ||
+        pageText.includes("Try again") ||
+        pageText.includes("trouble")
+      ) {
+        result = "error";
+      }
+    }
+
     res.json({
       success: true,
       email,
-      title,
+      result,
+      url: currentUrl,
     });
   } catch (err) {
     console.error(err);
@@ -54,6 +100,8 @@ app.get("/api/check", async (req, res) => {
       success: false,
       error: err.message,
     });
+  } finally {
+    if (browser) await browser.close();
   }
 });
 
