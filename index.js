@@ -1,5 +1,5 @@
 import express from "express";
-import puppeteerCore from "puppeteer-core";
+import puppeteer from "puppeteer";
 
 const app = express();
 
@@ -39,28 +39,17 @@ app.get("/api/check", async (req, res) => {
 
   let browser;
   try {
-    // pilih library: bundled puppeteer jika di-set USE_FULL_PUPPETEER=true
-    const puppeteerLib =
-      process.env.USE_FULL_PUPPETEER === "true"
-        ? (await import("puppeteer")).default
-        : puppeteerCore;
-
-    const CHROME_PATH = process.env.CHROME_PATH; // set via Dockerfile / env
     const launchOptions = {
       headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-zygote",
-        "--single-process",
       ],
       defaultViewport: null,
     };
-    if (CHROME_PATH) launchOptions.executablePath = CHROME_PATH;
 
-    browser = await puppeteerLib.launch(launchOptions);
+    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(0);
 
