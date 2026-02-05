@@ -27,61 +27,74 @@ app.get("/api/check", async (req, res) => {
 
     const page = await browser.newPage();
 
-    // biar gak timeout Netflix
     page.setDefaultNavigationTimeout(0);
 
-    // open Netflix
     await page.goto("https://www.netflix.com/", {
       waitUntil: "domcontentloaded",
     });
 
-    // 1️⃣ tunggu input email
     await page.waitForSelector('input[name="email"]', {
       visible: true,
     });
 
-    // 2️⃣ ketik email
     await page.type('input[name="email"]', email, { delay: 50 });
 
-    // 3️⃣ tunggu tombol submit
     await page.waitForSelector('button[type="submit"]', {
       visible: true,
     });
 
-    // klik tombol
     await page.click('button[type="submit"]');
 
-    // tunggu salah satu: navigation ATAU error text
-    await Promise.race([
-      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
-      page.waitForFunction(
-        () =>
-          document.body.innerText.includes("Something went wrong") ||
-          document.body.innerText.includes("Try again") ||
-          document.body.innerText.includes("trouble"),
-      ),
-    ]);
+    await page.waitForFunction(
+      () => {
+        const text = document.body.innerText.toLowerCase();
+        return (
+          location.href.includes("signup") ||
+          text.includes("something went wrong") ||
+          text.includes("try again") ||
+          text.includes("trouble")
+        );
+      },
+      { timeout: 60000, polling: 500 },
+    );
 
     const currentUrl = page.url();
     let result = "unknown";
 
-    // 1️⃣ redirect signup
-    if (currentUrl.includes("/signup")) {
-      result = "invalid_signup";
+    if (currentUrl.includes("serverState=")) {
+      try {
+        const params = new URL(currentUrl).searchParams;
+        const serverStateRaw = params.get("serverState");
+
+        if (serverStateRaw) {
+          const decoded = decodeURIComponent(serverStateRaw);
+          const state = JSON.parse(decoded);
+
+          if (
+            state?.name === "LOGIN" &&
+            !state?.sessionContext?.["login.navigationSettings"]
+          ) {
+            result = "valid_login";
+          } else if (
+            state?.name === "LOGIN" &&
+            state?.sessionContext?.["login.navigationSettings"]
+          ) {
+            result = "invalid_signup";
+          }
+        }
+      } catch (e) {
+        result = "unknown_state";
+      }
     }
 
-    // 2️⃣ redirect login
-    else if (currentUrl.includes("/login")) {
-      result = "valid_login";
-    }
-
-    // 3️⃣ error message
-    else {
-      const pageText = await page.evaluate(() => document.body.innerText);
+    if (result === "unknown") {
+      const pageText = await page.evaluate(() =>
+        document.body.innerText.toLowerCase(),
+      );
 
       if (
-        pageText.includes("Something went wrong") ||
-        pageText.includes("Try again") ||
+        pageText.includes("something went wrong") ||
+        pageText.includes("try again") ||
         pageText.includes("trouble")
       ) {
         result = "error";
