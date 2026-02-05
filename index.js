@@ -61,42 +61,34 @@ app.get("/api/check", async (req, res) => {
     await page.waitForSelector('button[type="submit"]', { visible: true });
     await page.click('button[type="submit"]');
 
-    await page.waitForFunction(
-      () => {
-        const text = document.body.innerText.toLowerCase();
-        return (
-          location.href.includes("signup") ||
-          text.includes("something went wrong") ||
-          text.includes("try again") ||
-          text.includes("trouble")
-        );
-      },
-      { timeout: 60000, polling: 500 },
-    );
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const currentUrl = page.url();
     let result = "unknown";
-    const parsedState = parseServerStateFromUrl(currentUrl);
 
-    if (parsedState) {
-      if (
-        parsedState.name === "LOGIN" &&
-        hasNested(parsedState, "sessionContext", "login.navigationSettings")
-      ) {
-        result = "invalid_signup";
-      } else if (parsedState.name === "LOGIN") {
-        result = "valid_login";
+    const pageText = await page.evaluate(() => document.body.innerText);
+    const pageTextLower = pageText.toLowerCase();
+
+    if (pageTextLower.includes("enter your info to sign in")) {
+      result = "not_subscription";
+    } else if (pageTextLower.includes("use a sign-in code")) {
+      result = "valid_subscription";
+    } else if (pageTextLower.includes("finish setting up your account")) {
+      result = "invalid_account";
+    }
+
+    if (result === "unknown") {
+      const parsedState = parseServerStateFromUrl(currentUrl);
+      if (parsedState) {
+        if (
+          parsedState.name === "LOGIN" &&
+          hasNested(parsedState, "sessionContext", "login.navigationSettings")
+        ) {
+          result = "invalid_signup";
+        } else if (parsedState.name === "LOGIN") {
+          result = "valid_login";
+        }
       }
-    } else {
-      const pageText = await page.evaluate(() =>
-        document.body.innerText.toLowerCase(),
-      );
-      if (
-        pageText.includes("something went wrong") ||
-        pageText.includes("try again") ||
-        pageText.includes("trouble")
-      )
-        result = "error";
     }
 
     res.json({
@@ -104,7 +96,7 @@ app.get("/api/check", async (req, res) => {
       email,
       result,
       url: currentUrl,
-      serverState: parsedState,
+      pageText: pageText,
     });
   } catch (err) {
     console.error(err);
