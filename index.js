@@ -9,7 +9,6 @@ function parseServerStateFromUrl(url) {
     let raw = params.get("serverState");
     if (!raw) return null;
 
-    // coba decode-parse satu atau dua kali
     let decoded = decodeURIComponent(raw);
     try {
       return JSON.parse(decoded);
@@ -21,15 +20,6 @@ function parseServerStateFromUrl(url) {
   }
 }
 
-function hasNested(obj, ...path) {
-  let cur = obj;
-  for (const p of path) {
-    if (!cur || !(p in cur)) return false;
-    cur = cur[p];
-  }
-  return true;
-}
-
 app.get("/api/check", async (req, res) => {
   const { email } = req.query;
   if (!email)
@@ -39,28 +29,17 @@ app.get("/api/check", async (req, res) => {
 
   let browser;
   try {
-    // pilih library: bundled puppeteer jika di-set USE_FULL_PUPPETEER=true
-    const puppeteerLib =
-      process.env.USE_FULL_PUPPETEER === "true"
-        ? (await import("puppeteer")).default
-        : puppeteerCore;
-
-    const CHROME_PATH = process.env.CHROME_PATH; // set via Dockerfile / env
     const launchOptions = {
       headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-zygote",
-        "--single-process",
       ],
       defaultViewport: null,
     };
-    if (CHROME_PATH) launchOptions.executablePath = CHROME_PATH;
 
-    browser = await puppeteerLib.launch(launchOptions);
+    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(0);
 
