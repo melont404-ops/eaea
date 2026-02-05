@@ -35,9 +35,6 @@ app.get("/api/check", async (req, res) => {
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--disable-blink-features=AutomationControlled",
-        "--disable-extensions",
-        "--disable-plugins",
       ],
     };
 
