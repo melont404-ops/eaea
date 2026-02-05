@@ -45,18 +45,18 @@ app.get("/api/check", async (req, res) => {
 
     await page.click('button[type="submit"]');
 
-    await page.waitForFunction(
-      () => {
-        const text = document.body.innerText.toLowerCase();
-        return (
-          location.href.includes("signup") ||
-          text.includes("something went wrong") ||
-          text.includes("try again") ||
-          text.includes("trouble")
-        );
-      },
-      { timeout: 60000, polling: 500 },
-    );
+    // await page.waitForFunction(
+    //   () => {
+    //     const text = document.body.innerText.toLowerCase();
+    //     return (
+    //       location.href.includes("signup") ||
+    //       text.includes("something went wrong") ||
+    //       text.includes("try again") ||
+    //       text.includes("trouble")
+    //     );
+    //   },
+    //   { timeout: 60000, polling: 500 },
+    // );
 
     const currentUrl = page.url();
     let result = "unknown";
