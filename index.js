@@ -45,13 +45,6 @@ app.get("/api/check", async (req, res) => {
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(0);
 
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    );
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "en-US,en;q=0.9",
-    });
-
     await page.goto("https://www.netflix.com/", {
       waitUntil: "domcontentloaded",
     });
