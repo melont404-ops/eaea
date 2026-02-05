@@ -39,17 +39,28 @@ app.get("/api/check", async (req, res) => {
 
   let browser;
   try {
+    // pilih library: bundled puppeteer jika di-set USE_FULL_PUPPETEER=true
+    const puppeteerLib =
+      process.env.USE_FULL_PUPPETEER === "true"
+        ? (await import("puppeteer")).default
+        : puppeteerCore;
+
+    const CHROME_PATH = process.env.CHROME_PATH; // set via Dockerfile / env
     const launchOptions = {
       headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-zygote",
+        "--single-process",
       ],
       defaultViewport: null,
     };
+    if (CHROME_PATH) launchOptions.executablePath = CHROME_PATH;
 
-    browser = await puppeteer.launch(launchOptions);
+    browser = await puppeteerLib.launch(launchOptions);
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(0);
 
@@ -65,38 +76,14 @@ app.get("/api/check", async (req, res) => {
 
     const currentUrl = page.url();
     let result = "unknown";
-
-    const pageText = await page.evaluate(() => document.body.innerText);
-    const pageTextLower = pageText.toLowerCase();
-
-    if (pageTextLower.includes("enter your info to sign in")) {
-      result = "not_subscription";
-    } else if (pageTextLower.includes("use a sign-in code")) {
-      result = "valid_subscription";
-    } else if (pageTextLower.includes("finish setting up your account")) {
-      result = "invalid_account";
-    }
-
-    if (result === "unknown") {
-      const parsedState = parseServerStateFromUrl(currentUrl);
-      if (parsedState) {
-        if (
-          parsedState.name === "LOGIN" &&
-          hasNested(parsedState, "sessionContext", "login.navigationSettings")
-        ) {
-          result = "invalid_signup";
-        } else if (parsedState.name === "LOGIN") {
-          result = "valid_login";
-        }
-      }
-    }
+    const parsedState = parseServerStateFromUrl(currentUrl);
 
     res.json({
       success: true,
       email,
       result,
       url: currentUrl,
-      pageText: pageText,
+      serverState: parsedState,
     });
   } catch (err) {
     console.error(err);
