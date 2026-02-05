@@ -42,26 +42,27 @@ app.get("/api/check", async (req, res) => {
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(0);
 
-    await page.goto("https://www.netflix.com/", {
+    await page.goto("https://login.xfinity.com/login", {
       waitUntil: "domcontentloaded",
     });
-    await page.waitForSelector('input[name="email"]', { visible: true });
-    await page.type('input[name="email"]', email, { delay: 50 });
+    await page.waitForSelector('input[id="user"]', { visible: true });
+    await page.type('input[id="user"]', email, { delay: 50 });
     await page.waitForSelector('button[type="submit"]', { visible: true });
     await page.click('button[type="submit"]');
 
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 8000));
 
-    const currentUrl = page.url();
-    let result = "unknown";
-    const parsedState = parseServerStateFromUrl(currentUrl);
+    const bodyText = await page.evaluate(() => {
+      return document.body.innerText;
+    });
+
+    const htmlContent = await page.content();
 
     res.json({
       success: true,
       email,
-      result,
-      url: currentUrl,
-      serverState: parsedState,
+      bodyText: bodyText,
+      htmlContent: htmlContent,
     });
   } catch (err) {
     console.error(err);
