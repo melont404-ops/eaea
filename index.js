@@ -47,7 +47,7 @@ app.get("/api/check", async (req, res) => {
     });
     await page.waitForSelector('input[id="user"]', { visible: true });
     await page.type('input[id="user"]', email, { delay: 50 });
-    await page.click('button[type="submit"]');
+    await page.click(".sc-prism-button");
 
     await new Promise((resolve) => setTimeout(resolve, 8000));
 
