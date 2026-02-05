@@ -47,7 +47,6 @@ app.get("/api/check", async (req, res) => {
     });
     await page.waitForSelector('input[id="user"]', { visible: true });
     await page.type('input[id="user"]', email, { delay: 50 });
-    await page.waitForSelector('button[type="submit"]', { visible: true });
     await page.click('button[type="submit"]');
 
     await new Promise((resolve) => setTimeout(resolve, 8000));
